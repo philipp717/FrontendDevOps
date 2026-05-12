@@ -1,0 +1,28 @@
+version: '3.9'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frontend-despacho
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - despacho-network
+    labels:
+      - "com.despacho.description=Frontend - Aplicación React Vite"
+      - "com.despacho.version=1.0"
+
+networks:
+  despacho-network:
+    driver: bridge
