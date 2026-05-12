@@ -27,7 +27,7 @@ LABEL maintainer="Philipp Reyes <philipp@example.com>" \
       description="Frontend Despacho - Aplicación React con Vite"
 
 # Instalar dumb-init para manejar señales correctamente
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache tini
 
 # Copiar configuración personalizada de Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -54,6 +54,6 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
 
-# Usar dumb-init para ejecutar Nginx
-ENTRYPOINT ["/usr/sbin/dumb-init", "--"]
+# Usar tini para ejecutar Nginx
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["nginx", "-g", "daemon off;"]
