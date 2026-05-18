@@ -1,88 +1,188 @@
-# 🎨 Frontend Despacho - React + Vite
+# Arquitectura de Microservicios - Sistema de Gestión Comercial (Lift & Shift)
 
-Interfaz de usuario moderna para la aplicación de despachos construida con React y Vite.
+El proyecto consiste en el despliegue de una arquitectura de microservicios bajo el enfoque Lift & Shift en AWS.
 
-## 📦 Dockerfile
+La solución contempla:
 
-Este proyecto incluye un **Dockerfile multi-stage optimizado** para containerización:
+- Frontend desplegado en una instancia pública
+- Backend de Ventas
+- Backend de Despachos
+- Base de datos MySQL
+- Contenedores Docker
+- Automatización CI/CD
 
-```
-Dockerfile              # Dockerfile multi-stage con Node.js y Nginx
-```
+La infraestructura fue implementada utilizando una VPC segmentada en capas Frontend, Backend y Data.
 
-### 🚀 Ejecución con Docker
+---
+
+## Arquitectura del Proyecto
+
+La arquitectura está dividida en 3 capas:
+
+| Capa | Función |
+|---|---|
+| Frontend | Acceso público desde Internet |
+| Backend | Microservicios privados |
+| Data | Base de datos MySQL privada |
+
+---
+
+## Tecnologías Utilizadas
+
+- AWS EC2
+- AWS VPC
+- Docker
+- Docker Compose
+- GitHub Actions
+- Docker Hub
+- React
+- Vite
+- Nginx
+
+---
+
+## Estructura del Proyecto
 
 ```bash
-# Construir la imagen
-docker build -t frontend-despacho:latest .
-
-# Ejecutar con docker-compose (RECOMENDADO)
-docker compose up -d
-
-# Ver logs
-docker compose logs -f
+FrontendDevOps/
+│
+├── src/
+├── public/
+├── Dockerfile
+├── docker-compose.yml
+├── .github/workflows/deploy.yml
+└── README.md
 ```
 
-Acceder en: [http://localhost](http://localhost)
+---
 
-📄 Para más información sobre Docker, consulta [DOCKER.md](./DOCKER.md)
+## Funcionamiento del Proyecto
 
-## 🛠️ Requisitos
+El Frontend consume servicios backend desplegados en contenedores Docker dentro de una subred privada.
 
-- Node.js 18+
-- npm o pnpm
-- Docker & Docker Compose (para ejecución containerizada)
+El proyecto utiliza Docker para contenerización y GitHub Actions para automatizar:
 
-## 🚀 Desarrollo Local
+- Build de imágenes
+- Push a Docker Hub
+- Deploy automático en AWS
+
+---
+
+## Cómo Utilizar el Proyecto
+
+### 1. Clonar repositorio
 
 ```bash
-# Instalar dependencias
-npm install
-
-# Ejecutar servidor de desarrollo
-npm run dev
-
-# Build para producción
-npm run build
-
-# Preview del build
-npm run preview
+git clone https://github.com/philipp717/FrontendDevOps.git
 ```
 
-## 📋 Stack Tecnológico
+### 2. Entrar al proyecto
 
-- **React** - UI Framework
-- **Vite** - Build tool y dev server
-- **Tailwind CSS** - Utilidades CSS
-- **Nginx** - Web server (en Docker)
-
-## 📁 Estructura del Proyecto
-
-```
-src/
-├── componentes/
-│   ├── CrudAdmin.jsx
-│   ├── CrudAdmin/
-│   └── Layouts/
-├── Routes/
-│   └── AppRoutes.jsx
-├── assets/
-│   └── images/
-├── index.css
-└── main.jsx
+```bash
+cd FrontendDevOps
 ```
 
-## ✨ Características
+### 3. Construir contenedor Docker
 
-- Interfaz responsiva
-- Componentes reutilizables
-- Routing avanzado
-- Tailwind CSS integrado
-- Hot Module Replacement (HMR)
+```bash
+docker build -t front-devops .
+```
 
-## 📚 Documentación
+### 4. Ejecutar contenedor
 
-- [Guía Docker](./DOCKER.md)
-- [Docker Compose](./docker-compose.yml)
-- [Vite Documentation](https://vitejs.dev)
-- [React Documentation](https://react.dev)
+```bash
+docker run -d -p 80:80 front-devops
+```
+
+---
+
+## Docker Compose
+
+El proyecto incluye un archivo:
+
+```bash
+docker-compose.yml
+```
+
+Permitiendo levantar el servicio automáticamente.
+
+### Ejecución
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## CI/CD
+
+El proyecto implementa integración y despliegue continuo mediante GitHub Actions.
+
+### Workflow
+
+```
+Push rama deploy
+    ↓
+Build Docker Image
+    ↓
+Push Docker Hub
+    ↓
+Deploy automático en AWS EC2
+```
+
+### GitHub Actions
+
+Archivo utilizado:
+
+```bash
+.github/workflows/deploy.yml
+```
+
+Este workflow automatiza:
+
+- Build Docker
+- Push Docker Hub
+- Deploy automático en EC2
+
+---
+
+## Seguridad
+
+La solución considera:
+
+- Frontend accesible únicamente por HTTP
+- Backend privado
+- Base de datos privada
+- Restricción SSH mediante Security Groups
+
+---
+
+## Infraestructura AWS
+
+La infraestructura fue desplegada utilizando:
+
+- EC2 Ubuntu
+- VPC personalizada
+- Subred pública
+- Subred privada
+- Security Groups
+
+---
+
+## Commits Explicativos
+
+El repositorio contiene commits descriptivos que permiten comprender:
+
+- Cambios realizados
+- Correcciones aplicadas
+- Actualizaciones del sistema
+- Implementación Docker
+- Integración CI/CD
+
+### Ejemplos
+
+```
+fix: corrige conexión backend mysql
+update: agrega workflow github actions
+feat: implementa docker compose
+```
