@@ -1,0 +1,55 @@
+name: Deploy Frontend to Amazon EKS
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  ECR_REPOSITORY: frontend-devops
+  K8S_NAMESPACE: devops
+  K8S_DEPLOYMENT: frontend-devops
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/frontend-devops:latest
+        run: |
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+
+      - name: Update EKS kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region "${{ secrets.AWS_REGION }}" \
+            --name "${{ secrets.EKS_CLUSTER_NAME }}"
+
+      - name: Deploy to Amazon EKS
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          sed -i "s/ACCOUNT_ID/${AWS_ACCOUNT_ID}/g; s/AWS_REGION/${AWS_REGION}/g" k8s/frontend-deployment.yaml
+          kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/frontend-service.yaml
+          kubectl apply -f k8s/frontend-hpa.yaml
+          kubectl rollout restart deployment/"$K8S_DEPLOYMENT" -n "$K8S_NAMESPACE"
+          kubectl rollout status deployment/"$K8S_DEPLOYMENT" -n "$K8S_NAMESPACE" --timeout=5m

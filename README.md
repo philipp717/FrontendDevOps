@@ -1,188 +1,113 @@
-# Arquitectura de Microservicios - Sistema de Gestión Comercial (Lift & Shift)
+# Frontend DevOps en AWS EKS
 
-El proyecto consiste en el despliegue de una arquitectura de microservicios bajo el enfoque Lift & Shift en AWS.
+Frontend desarrollado con React y Vite, compilado en una imagen Docker multi-stage y servido con Nginx. El despliegue productivo está preparado para Kubernetes en Amazon EKS, con imágenes almacenadas en Amazon ECR y automatización mediante GitHub Actions.
 
-La solución contempla:
+## Tecnologías
 
-- Frontend desplegado en una instancia pública
-- Backend de Ventas
-- Backend de Despachos
-- Base de datos MySQL
-- Contenedores Docker
-- Automatización CI/CD
-
-La infraestructura fue implementada utilizando una VPC segmentada en capas Frontend, Backend y Data.
-
----
-
-## Arquitectura del Proyecto
-
-La arquitectura está dividida en 3 capas:
-
-| Capa | Función |
-|---|---|
-| Frontend | Acceso público desde Internet |
-| Backend | Microservicios privados |
-| Data | Base de datos MySQL privada |
-
----
-
-## Tecnologías Utilizadas
-
-- AWS EC2
-- AWS VPC
-- Docker
-- Docker Compose
-- GitHub Actions
-- Docker Hub
-- React
-- Vite
+- React y Vite
 - Nginx
+- Docker
+- Kubernetes
+- Amazon EKS
+- Amazon ECR
+- GitHub Actions
 
----
+## Estructura relevante
 
-## Estructura del Proyecto
-
-```bash
+```text
 FrontendDevOps/
-│
 ├── src/
 ├── public/
+├── k8s/
+│   ├── frontend-deployment.yaml
+│   ├── frontend-service.yaml
+│   └── frontend-hpa.yaml
+├── .github/workflows/deploy-eks.yml
 ├── Dockerfile
-├── docker-compose.yml
-├── .github/workflows/deploy.yml
+├── nginx.conf
+├── default.conf
 └── README.md
 ```
 
----
+## Contenedor
 
-## Funcionamiento del Proyecto
+El `Dockerfile` utiliza dos etapas:
 
-El Frontend consume servicios backend desplegados en contenedores Docker dentro de una subred privada.
+1. Node.js instala las dependencias y ejecuta el build de Vite.
+2. Nginx sirve el contenido generado en `dist` por el puerto 80.
 
-El proyecto utiliza Docker para contenerización y GitHub Actions para automatizar:
-
-- Build de imágenes
-- Push a Docker Hub
-- Deploy automático en AWS
-
----
-
-## Cómo Utilizar el Proyecto
-
-### 1. Clonar repositorio
+Construcción y ejecución local:
 
 ```bash
-git clone https://github.com/philipp717/FrontendDevOps.git
+docker build -t frontend-devops:latest .
+docker run --rm -p 80:80 frontend-devops:latest
 ```
 
-### 2. Entrar al proyecto
+La aplicación quedará disponible en `http://localhost`.
+
+## Despliegue en Kubernetes
+
+Los manifiestos de `k8s/` crean los siguientes recursos en el namespace `devops`:
+
+- Deployment `frontend-devops` con 2 réplicas iniciales.
+- Service `frontend-devops` de tipo `LoadBalancer` en el puerto 80.
+- HPA `frontend-devops` entre 2 y 5 réplicas, con objetivo promedio de CPU del 50 %.
+
+La imagen configurada en el Deployment utiliza este formato:
+
+```text
+ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/frontend-devops:latest
+```
+
+El workflow reemplaza automáticamente `ACCOUNT_ID` y `AWS_REGION` con los GitHub Secrets antes de aplicar el manifiesto. Para una aplicación manual, reemplaza ambos valores por los datos reales de tu cuenta.
+
+## Pipeline CI/CD
+
+El workflow `.github/workflows/deploy-eks.yml` se ejecuta con cada push a la rama `master`.
+
+```text
+GitHub Actions → Build Docker → Push Amazon ECR → Deploy Amazon EKS
+```
+
+El pipeline:
+
+1. Descarga el código.
+2. Configura las credenciales de AWS.
+3. Inicia sesión en Amazon ECR.
+4. Construye y publica `frontend-devops:latest`.
+5. Actualiza el kubeconfig del clúster EKS.
+6. crea el namespace `devops` si no existe y aplica los manifiestos.
+7. Reinicia el Deployment y espera que el rollout finalice correctamente.
+
+El repositorio de ECR `frontend-devops` y el clúster EKS deben existir antes de ejecutar el workflow. El clúster también debe tener Metrics Server disponible para que el HPA pueda obtener métricas de CPU.
+
+## GitHub Secrets
+
+Configura estos secretos en el repositorio:
+
+| Secret | Descripción |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | Access key con permisos sobre ECR y EKS |
+| `AWS_SECRET_ACCESS_KEY` | Secret key correspondiente |
+| `AWS_REGION` | Región del repositorio ECR y del clúster EKS |
+| `AWS_ACCOUNT_ID` | ID de la cuenta AWS |
+| `EKS_CLUSTER_NAME` | Nombre del clúster EKS |
+
+La identidad IAM usada por GitHub Actions necesita permisos para publicar imágenes en ECR, consultar el clúster EKS y estar autorizada para operar recursos Kubernetes en el clúster.
+
+## Verificación
+
+Después del despliegue:
 
 ```bash
-cd FrontendDevOps
+kubectl get pods -n devops
+kubectl get svc -n devops
+kubectl get hpa -n devops
+kubectl logs -n devops deployment/frontend-devops
 ```
 
-### 3. Construir contenedor Docker
+Para obtener la URL pública, consulta la columna `EXTERNAL-IP` del Service:
 
 ```bash
-docker build -t front-devops .
-```
-
-### 4. Ejecutar contenedor
-
-```bash
-docker run -d -p 80:80 front-devops
-```
-
----
-
-## Docker Compose
-
-El proyecto incluye un archivo:
-
-```bash
-docker-compose.yml
-```
-
-Permitiendo levantar el servicio automáticamente.
-
-### Ejecución
-
-```bash
-docker compose up -d --build
-```
-
----
-
-## CI/CD
-
-El proyecto implementa integración y despliegue continuo mediante GitHub Actions.
-
-### Workflow
-
-```
-Push rama deploy
-    ↓
-Build Docker Image
-    ↓
-Push Docker Hub
-    ↓
-Deploy automático en AWS EC2
-```
-
-### GitHub Actions
-
-Archivo utilizado:
-
-```bash
-.github/workflows/deploy.yml
-```
-
-Este workflow automatiza:
-
-- Build Docker
-- Push Docker Hub
-- Deploy automático en EC2
-
----
-
-## Seguridad
-
-La solución considera:
-
-- Frontend accesible únicamente por HTTP
-- Backend privado
-- Base de datos privada
-- Restricción SSH mediante Security Groups
-
----
-
-## Infraestructura AWS
-
-La infraestructura fue desplegada utilizando:
-
-- EC2 Ubuntu
-- VPC personalizada
-- Subred pública
-- Subred privada
-- Security Groups
-
----
-
-## Commits Explicativos
-
-El repositorio contiene commits descriptivos que permiten comprender:
-
-- Cambios realizados
-- Correcciones aplicadas
-- Actualizaciones del sistema
-- Implementación Docker
-- Integración CI/CD
-
-### Ejemplos
-
-```
-fix: corrige conexión backend mysql
-update: agrega workflow github actions
-feat: implementa docker compose
+kubectl get svc frontend-devops -n devops
 ```
